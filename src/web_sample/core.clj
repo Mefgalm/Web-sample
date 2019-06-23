@@ -2,7 +2,8 @@
   (:gen-class)
   (:require [clojure.core.async :as async]
             [web-sample.saga :as saga]
-            [web-sample.domain :as dom]
+            [web-sample.domain.common :as d-com]
+            [web-sample.domain.user :as d-user]
             [clojure.core.match :refer [match]]))
 
 (def event-chan (async/chan))
@@ -37,8 +38,8 @@
   [{:keys [command-type] :as command}]
   (println "run-command " command)
   (match command-type
-    :register-user (dom/register-user)
-    :remove-user (dom/remove-user)
+    :register-user (d-user/register)
+    :remove-user (d-user/remove)
     :else (throw (Exception. (str "run-command !Wrong state " command)))))
 
 (defn run-event [event]
@@ -58,35 +59,24 @@
          comp (build-cmd comp-key comp-data)]
      (assoc cmd :compensation comp))))
 
-(defn register-user-cmd
-  [id name email]
-  {:command-type :register-user
-   :data (dom/register-user-data id name email)})
-
-(defn remove-user-cmd
-  [id]
-  {:command-type :remove-user
-   :data (dom/remove-user-data id)})
-
-(defn add-compensation
-  [command compensation]
-  (assoc command :compensation compensation))
-
 (defn make-register-user-command
   [key data]
   (match key
     :register-user (let [{:keys [name email]} data
                          id 1]
                      (build-cmd :register-user
-                                (dom/register-user-data id name email)
+                                (d-user/register-data id name email)
                                 :remove-user                                           
-                                (dom/remove-user-data id)))
+                                (d-user/remove-data id)))
     :else nil))
 
 
 (defn request->command
   [{:keys [body]}]
   body)
+
+(let [user-events (d-user/register 1 "vlad" "kuz@mail.com")]
+  (d-com/root-apply :user user-events))
 
 (defn -main []
   (event-handler event-chan)
