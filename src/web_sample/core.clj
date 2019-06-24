@@ -75,9 +75,6 @@
   [{:keys [body]}]
   body)
 
-(let [user-events (d-user/register 1 "vlad" "kuz@mail.com")]
-  (d-com/root-apply :user user-events))
-
 (defn -main []
   (event-handler event-chan)
   (let [saga (saga/run run-command run-event (make-register-user-command :register-user {:name "Vlad"

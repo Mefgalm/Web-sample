@@ -18,15 +18,12 @@
 
 (defn register [id name email]
   (println "Register user")
-  (vector {:event-type :user-registered 
-           :data (register-data id name email)}
-          
-          {:event-type :email-sended}))
+  (vector (create-event :user-registered (register-data id name email))
+          (create-event :email-sended)))
 
 (defn remove [id]
   (println "Remove user")
-  (vector {:event-type :user-removed
-           :data (remove-data id)}))
+  (vector (create-event :user-removed (remove-data id))))
 
 (defmethod apply-event
   :user [_ state {:keys [event-type data]}]
