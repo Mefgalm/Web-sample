@@ -4,6 +4,7 @@
             [web-sample.saga :as saga]
             [web-sample.domain.common :as d-com]
             [web-sample.domain.user :as d-user]
+            [web-sample.write-db :as write]
             [clojure.core.match :refer [match]]))
 
 (def event-chan (async/chan))
