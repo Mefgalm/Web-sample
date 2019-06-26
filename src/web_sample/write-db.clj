@@ -37,7 +37,7 @@
    :log-data (time-fn)})
 
 (defn adapt-events
-  [{:keys [event-serial stream-id type time-fn] :as aggregate} events]  
+  [{:keys [event-serial stream-id type] :as aggregate} events time-fn]
   (map (fn [id event] (event-with-stream (+ event-serial id)
                                          stream-id
                                          type
@@ -45,16 +45,15 @@
                                          time-fn))
        events))
 
-(defn safe-max
-  ([] 0)
-  ([x] (max x))
-  ([x & xs] (apply max (cons x xs))))
+(defn init-aggregate [stream-id type]
+  {:stream-id stream-id
+   :type type})
 
 (defn get [entity-type stream-id]
   (let [entity-events (filter #(= (:stream-id %) stream-id) db-events)
         domain-events (map (comp parse-json :data) entity-events)]
     (create-aggregate stream-id
                       entity-type
-                      (apply safe-max (map :id entity-events))
+                      (apply max (map :id entity-events))
                       (root-apply entity-type
                                   domain-events))))

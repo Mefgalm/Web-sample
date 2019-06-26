@@ -36,10 +36,11 @@
     (recur)))
 
 (defn run-command
-  [{:keys [command-type] :as command}]
+  [{:keys [command-type data] :as command}]
   (println "run-command " command)
   (match command-type
     :register-user (d-user/register)
+    :change-email (let [{:keys []}])(d-user/change-email user )
     :remove-user (d-user/remove)
     :else (throw (Exception. (str "run-command !Wrong state " command)))))
 
@@ -69,6 +70,7 @@
                                 (d-user/register-data id name email)
                                 :remove-user                                           
                                 (d-user/remove-data id)))
+    :change-email ()
     :else nil))
 
 
