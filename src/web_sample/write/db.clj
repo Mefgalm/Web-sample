@@ -9,6 +9,5 @@
             ;:ssl true
             :sslfactory "org.postgresql.ssl.NonValidatingFactory"})
 
-
 (db/query pg-db
          ["select * from events"])

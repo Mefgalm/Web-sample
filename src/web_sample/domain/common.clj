@@ -1,4 +1,5 @@
-(ns web-sample.domain.common)
+(ns web-sample.domain.common
+  (:require [clojure.string :as str]))
 
 (defn create-root
   [p & ps]
@@ -9,6 +10,10 @@
 (defmulti apply-event 
   (fn [entity-type state event] 
     entity-type))
+
+(defn create-event [event-type data]
+  {:event-type event-type
+   :data data})
 
 (defmulti create identity)
 

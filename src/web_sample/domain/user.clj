@@ -18,8 +18,14 @@
 
 (defn register [id name email]
   (println "Register user")
-  (vector (create-event :user-registered (register-data id name email))
+  (vector (create-event :user-registered
+                        (register-data id name email))
           (create-event :email-sended)))
+
+(defn change-email [user new-email]
+  (println "Email changed")
+  (vector {:event-type :email-changed
+           :data {:new-email new-email}}))
 
 (defn remove [id]
   (println "Remove user")
@@ -29,5 +35,6 @@
   :user [_ state {:keys [event-type data]}]
   (match event-type
     :user-registered (merge state data)
+    :email-changed (assoc state :email (:new-email data))
     :email-sended state    
     :else (throw (Exception. (str "apply-single! Wrong state " event-type)))))

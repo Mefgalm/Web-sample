@@ -7,7 +7,8 @@
                  [org.clojure/core.async "0.4.500"]
                  [honeysql "0.9.4"]
                  [org.clojure/java.jdbc "0.7.9"]
-                 [org.postgresql/postgresql "42.1.4"]
+                 [org.postgresql/postgresql "42.1.4"]                 
+                 [org.clojure/data.json "0.2.6"]
                  [org.clojure/core.match "0.3.0"]]
   :main web-sample.core
   :repl-options {:init-ns web-sample.core})
