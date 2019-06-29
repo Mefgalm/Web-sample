@@ -9,31 +9,33 @@
    :complete (list)})
 
 (defn apply-command
-  [run-cmmand-fn run-event-fn
+  [run-command-fn run-event-fn
    {:keys [saga-type commands complete] :as saga}
    {:keys [command-type] :as command}]
   (match [saga-type command-type]
     [:in-forward :proceed]
     (let [[current & next] commands]
       (if current
-        (let [event-statuses (->> (run-cmmand-fn current)
-                                  (map run-event-fn))]
+        (let [{response-command :command
+               events           :events} (run-command-fn current)
+              event-statuses (map run-event-fn events)]
           (if (every? (partial = :ok) event-statuses)
             (merge saga {:commands next
-                         :complete (cons current complete)})
+                         :complete (cons response-command complete)})
             (merge saga {:saga-type :in-backward
-                         :complete (empty complete)
-                         :commands (cons current complete)})))
+                         :complete  (empty complete)
+                         :commands  (cons response-command complete)})))
         (merge saga {:saga-type :done})))
     [:in-backward :proceed]
     (let [[current & next] commands]
       (if current
         (let [compensation-command (:compensation current)
-              event-statuses (->> (run-cmmand-fn compensation-command)
-                                  (map run-event-fn))]
+              {response-command :command
+               events           :events} (run-command-fn compensation-command)
+              event-statuses (map run-event-fn events)]
           (if (every? (partial = :ok) event-statuses)
             (merge saga {:commands next
-                         :complete (cons current complete)})
+                         :complete (cons response-command complete)})
             (merge saga {:saga-type :fail})))
         (merge saga {:saga-type :backward-done})))
     :else (throw (Exception. (str "apply-command !Wrong state " saga-type " " command-type)))))

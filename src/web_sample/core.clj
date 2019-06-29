@@ -2,10 +2,10 @@
   (:gen-class)
   (:require [web-sample.common :refer :all]
             [clojure.core.async :as async]
-            [web-sample.saga :as saga]
-            [web-sample.domain.common :as d-com]
+            [web-sample.saga :as saga]            
             [web-sample.domain.user :as d-user]
             [web-sample.write-db :as write]
+            [clojure.pprint :as pp]
             [clojure.core.match :refer [match]]))
 
 (def event-chan (async/chan))
@@ -19,7 +19,8 @@
 (defn event-handler
   [channel]
   (async/go-loop []
-    (let [[{:keys [event-type data] :as event} reply-channel] (async/<! channel)]
+    (let [[{:keys [data] :as root-event} reply-channel] (async/<! channel)
+          {:keys [event-type event-data]} data]
       (match event-type
         :user-removed
         (do 
@@ -32,8 +33,12 @@
         :email-sended
         (do
           (println "Email sended!")
-          (async/>! reply-channel :fail))
-        :else (throw (Exception. (str "Wrong event: " event)))))
+          (async/>! reply-channel :ok))
+        :email-changed
+        (do 
+          (println "Email changes")
+          (async/>! reply-channel :ok))
+        :else (throw (Exception. (str "Wrong event: " root-event)))))
     (recur)))
 
 (defn command-response [command events]
@@ -58,18 +63,22 @@
   (println "run-command " command)
   (match command-type
     :register-user (let [{:keys [name email]} data
-                         id                   1
-                         compensation         (build-cmd :remove-user)
+                         id                   12
+                         user-root            (write/create-entity :user)
+                         compensation         (build-cmd :remove-user {:id id})
                          events               (d-user/register id name email)
-                         adapted-events       (write/adapt-events (uuid) :user events now)]
+                         adapted-events       (write/adapt-events user-root events now)]
                      (command-response (add-compensation command compensation)
                                        adapted-events))
     :change-email (let [{:keys [id new-email]} data
-                        user                   (write/get-entity :user id)
-                        complensation          (build-cmd :change-email {:id        id
-                                                                         :new-email (:email user)})]
-                    (command-response (add-compensation command complensation)
-                                      (d-user/change-email user new-email)))
+                        user-root              (write/get-entity :user id)
+                        user                   (:entity user-root)
+                        compensation           (build-cmd :change-email {:id        id
+                                                                         :new-email (:email user)})
+                        events                 (d-user/change-email user new-email)
+                        adapted-events         (write/adapt-events user-root events now)]
+                    (command-response (add-compensation command compensation)
+                                      adapted-events))
     :remove-user (d-user/remove)
     :else (throw (Exception. (str "run-command !Wrong state " command)))))
 
@@ -86,7 +95,13 @@
 
 (defn -main []
   (event-handler event-chan)
-  (let [saga (saga/run run-command run-event (build-cmd :register-user 
-                                                        {:name "Vlad"
-                                                         :email "kuz@ff"}))]
+  (let [saga (saga/run
+              run-command
+              run-event
+              (build-cmd :register-user
+                         {:name  "Vlad"
+                          :email "kuz@ff"})
+              (build-cmd :change-email
+                         {:id 12
+                          :new-email "mefgalm@gmail.com"}))]
     (println  "end " saga)))
