@@ -1,6 +1,10 @@
 (ns web-sample.common
   (:require [clojure.data.json :as json]))
 
+(defn uuid [] (.toString (java.util.UUID/randomUUID)))
+
+(defn now [] (new java.util.Date))
+
 (defn- str-keyword? [s]
   (when (string? s)
     (let [[f & left] s]

@@ -1,6 +1,7 @@
 (ns web-sample.core
   (:gen-class)
-  (:require [clojure.core.async :as async]
+  (:require [web-sample.common :refer :all]
+            [clojure.core.async :as async]
             [web-sample.saga :as saga]
             [web-sample.domain.common :as d-com]
             [web-sample.domain.user :as d-user]
@@ -35,12 +36,40 @@
         :else (throw (Exception. (str "Wrong event: " event)))))
     (recur)))
 
+(defn command-response [command events]
+  {:command command
+   :events events})
+
+(defn add-compensation [cmd data]
+  (assoc cmd :compensation data))
+
+(defn build-cmd
+  ([cmd-key cmd-data]
+   {:command-type cmd-key
+    :data cmd-data})
+  ([cmd-key cmd-data
+    comp-key comp-data]
+   (let [cmd (build-cmd cmd-key cmd-data)
+         comp (build-cmd comp-key comp-data)]
+     (add-compensation cmd comp))))
+
 (defn run-command
   [{:keys [command-type data] :as command}]
   (println "run-command " command)
   (match command-type
-    :register-user (d-user/register)
-    :change-email (let [{:keys []}])(d-user/change-email user )
+    :register-user (let [{:keys [name email]} data
+                         id                   1
+                         compensation         (build-cmd :remove-user)
+                         events               (d-user/register id name email)
+                         adapted-events       (write/adapt-events (uuid) :user events now)]
+                     (command-response (add-compensation command compensation)
+                                       adapted-events))
+    :change-email (let [{:keys [id new-email]} data
+                        user                   (write/get-entity :user id)
+                        complensation          (build-cmd :change-email {:id        id
+                                                                         :new-email (:email user)})]
+                    (command-response (add-compensation command complensation)
+                                      (d-user/change-email user new-email)))
     :remove-user (d-user/remove)
     :else (throw (Exception. (str "run-command !Wrong state " command)))))
 
@@ -51,38 +80,13 @@
       reply-channel ([x] x)
       (async/timeout 1000) :timeout)))
 
-(defn build-cmd
-  ([cmd-key cmd-data]
-   {:command-type cmd-key
-    :data cmd-data})
-  ([cmd-key cmd-data
-    comp-key comp-data]
-   (let [cmd (build-cmd cmd-key cmd-data)
-         comp (build-cmd comp-key comp-data)]
-     (assoc cmd :compensation comp))))
-
-(defn make-register-user-command
-  [key data]
-  (match key
-    :register-user (let [{:keys [name email]} data
-                         id 1]
-                     (build-cmd :register-user
-                                (d-user/register-data id name email)
-                                :remove-user                                           
-                                (d-user/remove-data id)))
-    :change-email ()
-    :else nil))
-
-
 (defn request->command
   [{:keys [body]}]
   body)
 
-(let [user-events (d-user/register 1 "vlad" "kuz@mail.com")]
-  (d-com/root-apply :user user-events))
-
 (defn -main []
   (event-handler event-chan)
-  (let [saga (saga/run run-command run-event (make-register-user-command :register-user {:name "Vlad"
-                                                                                         :email "kuz@ff"}))]
+  (let [saga (saga/run run-command run-event (build-cmd :register-user 
+                                                        {:name "Vlad"
+                                                         :email "kuz@ff"}))]
     (println  "end " saga)))
