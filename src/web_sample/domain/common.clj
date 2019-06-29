@@ -20,7 +20,12 @@
 
 (defmulti create identity)
 
-(defn root-apply 
+(defn create-event
+  [event-type data]
+  {:event-type event-type
+   :data data})
+
+(defn rehydrate-entity 
   [entity-type events]
   (let [apply-event-type (partial apply-event entity-type)
         create-type (partial create entity-type)]
