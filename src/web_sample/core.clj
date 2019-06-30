@@ -7,11 +7,11 @@
             [web-sample.write-db :as write]
             [clojure.pprint :as pp]
             [clojure.core.match :refer [match]]))
-
 (def event-chan (async/chan))
 
-(defn w-user-registered! []
-  (println "Write-side! User registered"))
+(defn w-user-registered! [root-event]
+  (let [j-root-event (update root-event :data serialize-json)]
+    (write/save-event j-root-event)))
 
 (defn r-user-registered! []
   (println "Read-side! User registered"))
@@ -27,7 +27,7 @@
           (println "User removed!")
           (async/>! reply-channel :fail))
         :user-registered
-        (do (w-user-registered!)
+        (do (w-user-registered! root-event)
             (r-user-registered!)
             (async/>! reply-channel :ok))
         :email-sended
